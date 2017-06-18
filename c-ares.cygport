@@ -1,0 +1,30 @@
+NAME="c-ares"
+VERSION=1.12.0
+RELEASE=1
+CATEGORY="Libs"
+SUMMARY="Asynchronous resolver library"
+DESCRIPTION="This is c-ares, an asynchronous resolver library.  It is intended
+for applications which need to perform DNS queries without blocking, or need to
+perform multiple DNS queries in parallel.  The primary examples of such
+applications are servers which communicate with multiple clients and programs
+with graphical user interfaces."
+HOMEPAGE="http://c-ares.haxx.se/"
+SRC_URI="http://c-ares.haxx.se/download/c-ares-${VERSION}.tar.gz"
+PATCH_URI="
+	http://pkgs.fedoraproject.org/cgit/rpms/c-ares.git/plain/0001-Use-RPM-compiler-options.patch
+	1.12.0-cygwin.patch
+"
+
+PKG_NAMES="libcares2 libcares-devel"
+libcares2_CONTENTS="
+	usr/bin/cygcares-2.dll
+	usr/share/doc/c-ares/
+"
+libcares_devel_CONTENTS="
+	usr/include/ares*.h
+	usr/lib/libcares.dll.a
+	usr/lib/pkgconfig/libcares.pc
+	usr/share/man/man3/*
+"
+
+DIFF_EXCLUDES="ares_build.h"
