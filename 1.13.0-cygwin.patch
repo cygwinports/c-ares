@@ -1,15 +1,15 @@
---- origsrc/c-ares-1.12.0/ares_init.c	2016-09-27 03:33:06.000000000 -0500
-+++ src/c-ares-1.12.0/ares_init.c	2017-06-18 14:21:01.904438000 -0500
+--- origsrc/c-ares-1.13.0/ares_init.c	2017-06-16 07:53:03.000000000 -0500
++++ src/c-ares-1.13.0/ares_init.c	2017-09-25 09:04:27.371573800 -0500
 @@ -86,7 +86,7 @@ static int sortlist_alloc(struct apatter
                            struct apattern *pat);
- static int ip_addr(const char *s, ssize_t len, struct in_addr *addr);
+ static int ip_addr(const char *s, ares_ssize_t len, struct in_addr *addr);
  static void natural_mask(struct apattern *pat);
 -#if !defined(WIN32) && !defined(WATT32) && \
 +#if defined(__CYGWIN__) || !defined(WIN32) && !defined(WATT32) && \
      !defined(ANDROID) && !defined(__ANDROID__) && !defined(CARES_USE_LIBRESOLV)
  static int config_domain(ares_channel channel, char *str);
  static int config_lookup(ares_channel channel, const char *str,
-@@ -558,7 +558,7 @@ static int init_by_environment(ares_chan
+@@ -562,7 +562,7 @@ static int init_by_environment(ares_chan
    return ARES_SUCCESS;
  }
  
@@ -18,7 +18,7 @@
  /*
   * get_REG_SZ()
   *
-@@ -910,8 +910,8 @@ static int get_DNS_NetworkParams(char **
+@@ -915,8 +915,8 @@ static int get_DNS_NetworkParams(char **
      /* Validate converting textual address to binary format. */
      if (ares_inet_pton(AF_INET, txtaddr, &namesrvr.addrV4) == 1)
      {
@@ -29,15 +29,15 @@
          continue;
      }
      else if (ares_inet_pton(AF_INET6, txtaddr, &namesrvr.addrV6) == 1)
-@@ -939,6 +939,7 @@ done:
-   return 1;
+@@ -981,6 +981,7 @@ static int compareAddresses(const void *
+   return 0;
  }
  
 +#ifndef __CYGWIN__
- /*
-  * get_DNS_AdaptersAddresses()
-  *
-@@ -1020,8 +1021,8 @@ static int get_DNS_AdaptersAddresses(cha
+ /* There can be multiple routes to "the Internet".  And there can be different
+  * DNS servers associated with each of the interfaces that offer those routes.
+  * We have to assume that any DNS server can serve any request.  But, some DNS
+@@ -1157,8 +1158,8 @@ static int get_DNS_AdaptersAddresses(cha
  
        if (namesrvr.sa->sa_family == AF_INET)
        {
@@ -46,9 +46,9 @@
 +        if ((namesrvr.sa4->sin_addr.s_addr == INADDR_ANY) ||
 +            (namesrvr.sa4->sin_addr.s_addr == INADDR_NONE))
            continue;
-         if (! ares_inet_ntop(AF_INET, &namesrvr.sa4->sin_addr,
-                              txtaddr, sizeof(txtaddr)))
-@@ -1055,6 +1056,7 @@ done:
+ 
+         /* Allocate room for another address, if necessary, else skip. */
+@@ -1274,6 +1275,7 @@ done:
  
    return 1;
  }
@@ -56,19 +56,29 @@
  
  /*
   * get_DNS_Windows()
-@@ -1082,9 +1084,11 @@ static int get_DNS_Windows(char **outptr
-   if (get_DNS_NetworkParams(outptr))
-     return 1;
- 
+@@ -1291,10 +1293,12 @@ done:
+  */
+ static int get_DNS_Windows(char **outptr)
+ {
 +#ifndef __CYGWIN__
-   /* Try using IP helper API GetAdaptersAddresses() */
+   /* Try using IP helper API GetAdaptersAddresses(). IPv4 + IPv6, also sorts
+    * DNS servers by interface route metrics to try to use the best DNS server. */
    if (get_DNS_AdaptersAddresses(outptr))
      return 1;
 +#endif
  
-   /* Fall-back to registry information */
-   return get_DNS_Registry(outptr);
-@@ -1101,7 +1105,7 @@ static int init_by_resolv_conf(ares_chan
+   /* Try using IP helper API GetNetworkParams(). IPv4 only. */
+   if (get_DNS_NetworkParams(outptr))
+@@ -1336,7 +1340,7 @@ static bool contains_suffix(const char*
+     end = beg;
+     while (*end && !ISSPACE(*end) && (*end != ','))
+       ++end;
+-    if (len == (end - beg) && !strnicmp(beg, suffix, len))
++    if (len == (end - beg) && !strncasecmp(beg, suffix, len))
+       return true;
+     beg = end;
+   }
+@@ -1455,7 +1459,7 @@ static int init_by_resolv_conf(ares_chan
    struct server_state *servers = NULL;
    struct apattern *sortlist = NULL;
  
@@ -77,7 +87,7 @@
  
    if (channel->nservers > -1)  /* don't override ARES_OPT_SERVER */
       return ARES_SUCCESS;
-@@ -1286,6 +1290,18 @@ static int init_by_resolv_conf(ares_chan
+@@ -1646,6 +1650,18 @@ static int init_by_resolv_conf(ares_chan
        }
        fclose(fp);
      }
@@ -96,7 +106,7 @@
      else {
        error = ERRNO;
        switch(error) {
-@@ -1569,7 +1585,7 @@ static int init_by_defaults(ares_channel
+@@ -1929,7 +1945,7 @@ static int init_by_defaults(ares_channel
    return rc;
  }
  
@@ -105,7 +115,7 @@
      !defined(ANDROID) && !defined(__ANDROID__) && !defined(CARES_USE_LIBRESOLV)
  static int config_domain(ares_channel channel, char *str)
  {
-@@ -1877,7 +1893,7 @@ static const char *try_option(const char
+@@ -2237,7 +2253,7 @@ static const char *try_option(const char
    return ((size_t)(q - p) >= len && !strncmp(p, opt, len)) ? &p[len] : NULL;
  }
  
@@ -114,8 +124,8 @@
      !defined(ANDROID) && !defined(__ANDROID__) && !defined(CARES_USE_LIBRESOLV)
  static char *try_config(char *s, const char *opt, char scc)
  {
---- origsrc/c-ares-1.12.0/ares_library_init.c	2016-03-13 10:29:16.000000000 -0500
-+++ src/c-ares-1.12.0/ares_library_init.c	2017-06-18 14:22:48.186098700 -0500
+--- origsrc/c-ares-1.13.0/ares_library_init.c	2017-03-13 01:55:12.000000000 -0500
++++ src/c-ares-1.13.0/ares_library_init.c	2017-09-25 08:59:21.755286700 -0500
 @@ -23,9 +23,11 @@
  
  /* library-private global and unique instance vars */
@@ -127,9 +137,9 @@
 +#endif
 +#ifdef USE_WINSOCK
  fpGetAdaptersAddresses_t ares_fpGetAdaptersAddresses = ZERO_NULL;
+ fpGetBestRoute2_t ares_fpGetBestRoute2 = ZERO_NULL;
  #endif
- 
-@@ -39,7 +41,7 @@ void *(*ares_malloc)(size_t size) = mall
+@@ -40,7 +42,7 @@ void *(*ares_malloc)(size_t size) = mall
  void *(*ares_realloc)(void *ptr, size_t size) = realloc;
  void (*ares_free)(void *ptr) = free;
  
@@ -138,7 +148,7 @@
  static HMODULE hnd_iphlpapi;
  static HMODULE hnd_advapi32;
  #endif
-@@ -47,7 +49,7 @@ static HMODULE hnd_advapi32;
+@@ -48,7 +50,7 @@ static HMODULE hnd_advapi32;
  
  static int ares_win32_init(void)
  {
@@ -147,7 +157,7 @@
  
    hnd_iphlpapi = 0;
    hnd_iphlpapi = LoadLibraryW(L"iphlpapi.dll");
-@@ -62,6 +64,7 @@ static int ares_win32_init(void)
+@@ -63,6 +65,7 @@ static int ares_win32_init(void)
        return ARES_EADDRGETNETWORKPARAMS;
      }
  
@@ -155,15 +165,15 @@
    ares_fpGetAdaptersAddresses = (fpGetAdaptersAddresses_t)
      GetProcAddress(hnd_iphlpapi, "GetAdaptersAddresses");
    if (!ares_fpGetAdaptersAddresses)
-@@ -70,6 +73,7 @@ static int ares_win32_init(void)
+@@ -80,6 +83,7 @@ static int ares_win32_init(void)
           think it should be an error, unless we don't want to
-          support Windows 2000 anymore */
+          support Windows XP anymore */
      }
 +#endif
  
    /*
     * When advapi32.dll is unavailable or advapi32.dll has no SystemFunction036,
-@@ -92,7 +96,7 @@ static int ares_win32_init(void)
+@@ -102,7 +106,7 @@ static int ares_win32_init(void)
  
  static void ares_win32_cleanup(void)
  {
@@ -172,9 +182,9 @@
    if (hnd_advapi32)
      FreeLibrary(hnd_advapi32);
    if (hnd_iphlpapi)
---- origsrc/c-ares-1.12.0/ares_library_init.h	2016-01-23 16:41:55.000000000 -0600
-+++ src/c-ares-1.12.0/ares_library_init.h	2017-06-18 14:23:14.811201400 -0500
-@@ -20,21 +20,25 @@
+--- origsrc/c-ares-1.13.0/ares_library_init.h	2017-03-13 01:55:12.000000000 -0500
++++ src/c-ares-1.13.0/ares_library_init.h	2017-09-25 08:59:30.873222400 -0500
+@@ -20,24 +20,28 @@
  
  #include "ares_setup.h"
  
@@ -188,8 +198,8 @@
  typedef BOOLEAN (APIENTRY *fpSystemFunction036_t) (void*, ULONG);
 +#ifdef USE_WINSOCK
  typedef ULONG (WINAPI *fpGetAdaptersAddresses_t) ( ULONG, ULONG, void*, IP_ADAPTER_ADDRESSES*, ULONG* );
+ typedef NETIO_STATUS (WINAPI *fpGetBestRoute2_t) ( NET_LUID *, NET_IFINDEX, const SOCKADDR_INET *, const SOCKADDR_INET *, ULONG, PMIB_IPFORWARD_ROW2, SOCKADDR_INET * );
 +#endif
- 
  /* Forward-declaration of variables defined in ares_library_init.c */
  /* that are global and unique instances for whole c-ares library.  */
  
@@ -197,12 +207,16 @@
  extern fpSystemFunction036_t ares_fpSystemFunction036;
 +#ifdef USE_WINSOCK
  extern fpGetAdaptersAddresses_t ares_fpGetAdaptersAddresses;
+ extern fpGetBestRoute2_t ares_fpGetBestRoute2;
 +#endif
  
- #endif /* USE_WINSOCK */
+-#endif /* USE_WINSOCK */
++#endif /* WIN32 || __CYGWIN__ */
  
---- origsrc/c-ares-1.12.0/ares_platform.c	2016-01-23 16:41:55.000000000 -0600
-+++ src/c-ares-1.12.0/ares_platform.c	2017-06-18 14:20:26.857427400 -0500
+ #endif /* HEADER_CARES_LIBRARY_INIT_H */
+ 
+--- origsrc/c-ares-1.13.0/ares_platform.c	2016-01-23 16:41:55.000000000 -0600
++++ src/c-ares-1.13.0/ares_platform.c	2017-09-24 21:59:28.478716600 -0500
 @@ -23,7 +23,8 @@
  #include "ares_nowarn.h"
  #include "ares_private.h"
@@ -213,8 +227,8 @@
  
  #define V_PLATFORM_WIN32s         0
  #define V_PLATFORM_WIN32_WINDOWS  1
---- origsrc/c-ares-1.12.0/ares_platform.h	2016-01-23 16:41:55.000000000 -0600
-+++ src/c-ares-1.12.0/ares_platform.h	2017-06-18 14:12:09.027624000 -0500
+--- origsrc/c-ares-1.13.0/ares_platform.h	2016-01-23 16:41:55.000000000 -0600
++++ src/c-ares-1.13.0/ares_platform.h	2017-09-24 21:59:28.482715400 -0500
 @@ -20,7 +20,7 @@
  
  #include "ares_setup.h"
@@ -224,8 +238,8 @@
  
  typedef enum {
    WIN_UNKNOWN,
---- origsrc/c-ares-1.12.0/ares_private.h	2016-02-11 05:23:52.000000000 -0600
-+++ src/c-ares-1.12.0/ares_private.h	2017-06-18 14:09:27.214478500 -0500
+--- origsrc/c-ares-1.13.0/ares_private.h	2017-06-16 07:53:03.000000000 -0500
++++ src/c-ares-1.13.0/ares_private.h	2017-09-24 21:59:28.486716700 -0500
 @@ -50,7 +50,7 @@
  #define STATIC_TESTABLE static
  #endif
@@ -235,9 +249,9 @@
  
  #define WIN_NS_9X      "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
  #define WIN_NS_NT_KEY  "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
-@@ -59,7 +59,9 @@
- #define DATABASEPATH   "DatabasePath"
- #define WIN_PATH_HOSTS  "\\hosts"
+@@ -65,7 +65,9 @@
+ #define DOMAIN_KEY     "Domain"
+ #define DHCPDOMAIN_KEY "DhcpDomain"
  
 -#elif defined(WATT32)
 +#endif

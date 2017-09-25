@@ -1,5 +1,5 @@
 NAME="c-ares"
-VERSION=1.12.0
+VERSION=1.13.0
 RELEASE=1
 CATEGORY="Libs"
 SUMMARY="Asynchronous resolver library"
@@ -12,7 +12,7 @@ HOMEPAGE="http://c-ares.haxx.se/"
 SRC_URI="http://c-ares.haxx.se/download/c-ares-${VERSION}.tar.gz"
 PATCH_URI="
 	http://pkgs.fedoraproject.org/cgit/rpms/c-ares.git/plain/0001-Use-RPM-compiler-options.patch
-	1.12.0-cygwin.patch
+	1.13.0-cygwin.patch
 "
 
 PKG_NAMES="libcares2 libcares-devel"
