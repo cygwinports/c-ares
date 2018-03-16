@@ -1,5 +1,5 @@
 NAME="c-ares"
-VERSION=1.13.0
+VERSION=1.14.0
 RELEASE=1
 CATEGORY="Libs"
 SUMMARY="Asynchronous resolver library"
